@@ -15,7 +15,7 @@ def sub_position(pos, angle_id):
     if angle_id == 3: return [pos[0] - 1, pos[1] + 0]
 
 def piece_id_to_characer(id):
-    return chr(ord("A") + id)
+    return f"\x1b[{41+id}m" + chr(ord("A") + id) + "\x1b[40m";
 
 def cell_id_from_piece_id(id):
     return id + 1
@@ -79,37 +79,35 @@ def fall_pieces(field):
         has_falled = True
     return has_falled
 
-def print_field(field, target):
+def write_field(char_grids, bx, by, field, target):
+    for y in range(FIELD["HEIGHT"]):
+        char_grids[y][0] = "|"
+        char_grids[y][1 + FIELD["WIDTH"]] = "|"
+    char_grids[FIELD["HEIGHT"]][0:FIELD["WIDTH"] + 2] = ["+"] + ["-"] * FIELD["WIDTH"] + ["+"]
+    bx, by = (1, 0)
+    for y in range(0, FIELD["HEIGHT"]):
+        for x in range(0, FIELD["WIDTH"]):
+            char_grids[by + y][bx + x] = cell_id_to_character(field[y][x])
     if target != None:
         pos = target["position"]
         sub_pos = sub_position(pos, target["angle_id"])
-    print("#" * (2 + FIELD["WIDTH"]))
-    for y in range(0, FIELD["HEIGHT"]):
-        s = ""
-        for x in range(0, FIELD["WIDTH"]):
-            c = cell_id_to_character(field[y][x])
-            if target != None:
-                if pos[1] == y and pos[0] == x:
-                    c = piece_id_to_characer(target["kind_ids"][0])
-                if sub_pos[1] == y and sub_pos[0] == x:
-                    c = piece_id_to_characer(target["kind_ids"][1])
-            s += c
-        print("#" + s + "#")
-    print("#" * (2 + FIELD["WIDTH"]))
+        char_grids[by + pos[1]][bx + pos[0]] = piece_id_to_characer(target["kind_ids"][0])
+        char_grids[by + sub_pos[1]][bx + sub_pos[0]] = piece_id_to_characer(target["kind_ids"][1])
+
+def write_to_char_grids(char_grids, x, y, s):
+    char_grids[y][x:x+len(s)] = s
+
+def print_char_grids(char_grids):
+    print("\n".join(["".join(line_chars).rstrip() for line_chars in char_grids]))
 
 def print_state(state):
-    print_field(state["field"], state["target"])
-    for i in reversed(range(2)):
-        chars = []
-        for next_kind_ids in state["next_kind_ids_list"]:
-            chars.append(piece_id_to_characer(next_kind_ids[i]))
-        print(" ".join(chars))
-    if state["combo"] > 0:
-        print("Combo: " + str(state["combo"]))
-    elif state["target"] == None:
-        print("!")
-    else:
-        print("?")
+    char_grids = [[" "] * 40 for i in range(14)];
+    write_field(char_grids, 0, 0, state["field"], state["target"])
+    for i, next_kind_ids in enumerate(state["next_kind_ids_list"]):
+        char_grids[3 * i + 0][9] = piece_id_to_characer(next_kind_ids[1])
+        char_grids[3 * i + 1][9] = piece_id_to_characer(next_kind_ids[0])
+    write_to_char_grids(char_grids, 9, 13, "Combo: " + str(state["combo"]))
+    print_char_grids(char_grids)
 
 def position_is_in_field(field, pos):
     if pos[0] < 0: return False
